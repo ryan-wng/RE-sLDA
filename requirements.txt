@@ -1,4 +1,8 @@
 numpy
-scipy
-scikit-learn
 pandas
+scikit-learn
+joblib
+tqdm
+tqdm-joblib
+matplotlib
+seaborn
