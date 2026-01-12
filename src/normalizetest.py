@@ -1,6 +1,3 @@
-import numpy as np
-from normalize import normalize
-
 def normalizetest(Xtst, Xn):
     ntst, p = Xtst.shape
     

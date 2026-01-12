@@ -80,11 +80,8 @@ def ASDA(Xt, Yt, Om=None, gam=1e-3, lam=1e-6, q=None, method='SDAAP', control=No
     if gam < 0 or np.any(np.array(lam) < 0):
         raise ValueError("gam and lam must be positive")
 
-    if method not in ['SDAAP', 'SDAP', 'SDAD']:
+    if method not in ['SDAAP']:
         raise ValueError(f"{method} is not a valid method")
-
-    if method == 'SDAD' and control['mu'] is None:
-        control['mu'] = 1 
 
     if control['CV'] and len(np.atleast_1d(lam)) < 2:
         raise ValueError("If using CV, lam must be a vector with >=2 elements")

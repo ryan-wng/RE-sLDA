@@ -3,19 +3,15 @@ from .ASDA import ASDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 def ordASDA(Xt, Yt, s=1, Om=None, gam=0, lam=1e-6, method="SDAAP", control=None, h=1):
-    """
-    Python translation of ordASDA.default from R.
-    Calls ASDA() internally.
-    """
 
     if Yt is None:
-        raise ValueError("We need the ordinal labels Yt to run this function!")
+        raise ValueError("Need the ordinal labels Yt to run this function")
 
     # number of classes
     unique_classes = np.unique(Yt)
     K = len(unique_classes)
     if K == 2:
-        raise ValueError("Only two types of labels, just use a binary classifier!")
+        raise ValueError("Only two types of labels, just use a binary classifier")
 
     # control settings
     if control is None:
@@ -32,7 +28,7 @@ def ordASDA(Xt, Yt, s=1, Om=None, gam=0, lam=1e-6, method="SDAAP", control=None,
             Om[i, i] = 1
     else:
         if Om.shape[0] != p:
-            raise ValueError("Om must be of dimension p by p, where p is the number of predictors!")
+            raise ValueError("Om must be of dimension p by p, where p is the number of predictors")
         regMat = np.zeros((p + K - 1, p + K - 1))
         regMat[:p, :p] = Om
         Om = regMat

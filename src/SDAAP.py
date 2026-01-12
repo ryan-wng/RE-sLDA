@@ -61,7 +61,7 @@ def SDAAP(Xt, Yt, Om, gam, lam, q, PGsteps, PGtol, maxits, tol, selector=None, i
     for j in range(q):
         L = origL
 
-        Qj = Q[:, :j+1]  # Python slice is exclusive
+        Qj = Q[:, :j+1]
 
         def Mj(u):
             return u - Qj @ (Qj.T @ (D @ u))

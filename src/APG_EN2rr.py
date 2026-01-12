@@ -1,10 +1,7 @@
 import numpy as np
-from sklearn.linear_model import ElasticNet
-import pandas as pd
 
 def APG_EN2rr(A, d, x0, lam, alpha, maxits, tol, selector=None):
     """
-    Python translation of R's APG_EN2rr.
     Accelerated Proximal Gradient for the rank-reduced (A$flag != 1) case.
 
     Parameters

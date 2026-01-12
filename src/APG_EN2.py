@@ -1,7 +1,4 @@
 import numpy as np
-from sklearn.linear_model import ElasticNet
-import pandas as pd
-
 
 def APG_EN2(A, d, x0, lam, alpha, maxits, tol, selector=None):
     # Flatten all inputs to 1D

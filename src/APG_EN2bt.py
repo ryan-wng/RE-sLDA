@@ -1,11 +1,6 @@
 import numpy as np
-from sklearn.linear_model import ElasticNet
-import pandas as pd
 
 def APG_EN2bt(A, Xt, Om, gamma, d, x0, lam, L, eta, maxits, tol, selector=None):
-    """
-    Python translation of R function APG_EN2bt
-    """
     x = x0.copy()
     y = x.copy()
     p = x.shape[0]
