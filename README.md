@@ -68,7 +68,6 @@ best_lambda = res["lambda"]
 ```
 ## Reference
 
-If you use this code in academic work, please cite the original accSDA paper/package:
 > Clemmensen, L., Hastie, T., Witten, D., & Ersbøll, B. (2011).  
 > Sparse Discriminant Analysis. Technometrics.
 
