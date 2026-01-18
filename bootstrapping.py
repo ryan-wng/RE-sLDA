@@ -3,16 +3,11 @@ import pandas as pd
 from ordinal.ordinalFunctions import ordASDA
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error
-from sklearn.model_selection import KFold
 from joblib import Parallel, delayed, parallel_backend
 from tqdm import tqdm
 from tqdm_joblib import tqdm_joblib
-import matplotlib.pyplot as plt
-import seaborn as sns
 import time
-import random
 from datetime import datetime
-import math
 from funs import predict_asda_ordinal
 from sklearn.model_selection import GroupKFold
 
@@ -166,110 +161,72 @@ def run_bootstrap(i, X, Y, varnames_full,
         "mae": best["mae"]
     }
 
-# -----------------------------
-# Main pipeline (Parallel over bootstraps)
-# -----------------------------
-def main():
-
-    # ------------------
-    # Load data
-    # ------------------
-    x = pd.read_csv("use_glio_data_filter1000.csv")
-    y = pd.read_csv("use_glio_dataY_filter1000.csv")
-
-    X_new = x.values
-    Y = y.values.squeeze()
-    varnames_full = x.columns.tolist()
-    n_cols = X_new.shape[1]
-
-    # ------------------
-    # Hyperparameters
-    # ------------------
-    subspace_size = 5
-    predictor_subset = int(round(n_cols * 0.8))
-    target_unique_prob =  0.8
-    boot_scale = -math.log(1-target_unique_prob)
-    #lambda_grid = 10 ** np.linspace(-2.5, -1, 10)
-    n_bootstraps = 200
-    cv_folds = 4
-    n_jobs = -1    
-    base_seed = 42 
-
-    # For reproducibility of top-level RNG
-    random.seed(base_seed)
-    np.random.seed(base_seed)
-
+def run_parallel_bootstraps(iters, X_new, Y, varnames_full, boot_scale, 
+                            predictor_subset, subspace_size, cv_folds, base_seed=42):
+    """
+    Parallel driver over bootstraps with tqdm_joblib progress bar.
+    Returns the list of per-bootstrap result dicts.
+    """
     start = time.time()
-
-    # Parallel over bootstraps with nice progress bar
     with parallel_backend("loky"):
-        with tqdm_joblib(tqdm(total=n_bootstraps, desc="Bootstraps", ncols=80)):
-            results = Parallel(n_jobs=n_jobs)(
+        with tqdm_joblib(
+            tqdm(total=iters, desc="Bootstrapping iterations", ncols=80)
+        ):
+            results = Parallel(n_jobs=-1)(
                 delayed(run_bootstrap)(
                     i,
                     X=X_new,
                     Y=Y,
                     varnames_full=varnames_full,
-                   # lambda_grid=lambda_grid,
                     boot_scale=boot_scale,
                     predictor_subset=predictor_subset,
                     subspace_size=subspace_size,
                     cv_folds=cv_folds,
-                    base_seed=base_seed
+                    base_seed=base_seed,
                 )
-                for i in range(n_bootstraps)
+                for i in range(iters)
             )
+            
+    print("total time:", round(time.time() - start, 2), "sec")
+    best_result = max(results, key=lambda r: r["accuracy"])
+    print("Best model accuracy:", round(best_result["accuracy"], 4))
 
-    end = time.time()
-    print("total time:", round(end - start, 2), "sec")
+    save_bootstrap_outputs(results)
 
-    # ------------------
-    # Collect results
-    # ------------------
+def save_bootstrap_outputs(results, out_prefix="BS_Glios_group", vip_prefix="BS_Glios_gr_VIP"):
+    """
+    Saves:
+      1) per-bootstrap summary CSV
+      2) VIP frequency CSV
+    Returns (results_filename, vip_filename).
+    """
     models_beta = [r["beta"] for r in results]
-    models_cvm = [r["varNames"] for r in results]
+    models_vars = [r["varNames"] for r in results]
     accuracies = [r["accuracy"] for r in results]
     maes = [r["mae"] for r in results]
     lambdas = [r["optimal_lambda"] for r in results]
 
-    best_result = max(results, key=lambda x: x["accuracy"])
-    print("Best model accuracy:", round(best_result["accuracy"], 4))
-
-    # ------------------
-    # Save model summary
-    # ------------------
     df = pd.DataFrame({
         "Beta": models_beta,
-        "Variables": models_cvm,
+        "Variables": models_vars,
         "optimal_lambda": lambdas,
         "Accuracy": accuracies,
         "MAE": maes
     })
-    date_str = datetime.now().strftime("%Y%m%d")
-    rand_num = random.randint(1000, 9999)
-    filename = f"BS_Glios_group_{date_str}_{rand_num}.csv"
-    df.to_csv(filename, index=False)
-    print("Saved model results to:", filename)
 
-    # ------------------
-    # Variable frequency
-    # ------------------
-    all_selected = sum([r["varNames"] for r in results], [])
+    # VIP frequency
+    all_selected = sum(models_vars, [])
     freq = pd.Series(all_selected).value_counts().sort_values(ascending=False)
     freq_df = freq.reset_index()
     freq_df.columns = ["Variable", "Frequency"]
-    rand_num = random.randint(1000, 9999)
-    freq_filename = f"BS_Glios_gr_VIP_{date_str}_{rand_num}.csv"
-    freq_df.to_csv(freq_filename, index=False)
-    print("Saved variable frequency to:", freq_filename)
 
-    # Plot frequency
-    plt.figure(figsize=(12, 6))
-    sns.barplot(data=freq_df, x="Variable", y="Frequency", order=freq_df["Variable"])
-    plt.xticks(rotation=90)
-    plt.title("Frequency of Each Selected Variable (Ordered)")
-    plt.tight_layout()
-    plt.show()
+    date_str = datetime.now().strftime("%m%d%H%M%S")
 
-if __name__ == "__main__":
-    main()
+    results_filename = f"{out_prefix}_{date_str}.csv"
+    vip_filename = f"{vip_prefix}_{date_str}.csv"
+
+    df.to_csv(results_filename, index=False)
+    freq_df.to_csv(vip_filename, index=False)
+    
+    print("Saved model results to:", results_filename)
+    print("Saved variable frequency to:", vip_filename)

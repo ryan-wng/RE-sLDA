@@ -3,10 +3,10 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import StandardScaler
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, parallel_backend
 from ordinal.ordinalFunctions import ordASDA
 from tqdm import tqdm
-import random
+from tqdm_joblib import tqdm_joblib
 from datetime import datetime
 from funs import predict_asda_ordinal
 
@@ -40,7 +40,7 @@ def cv_lambda(data, response, lambda_grid, n_folds=4):
         return np.nanmean(fold_mae)
 
     avg_mae = []
-    for lam in tqdm(lambda_grid, desc="CV lambda", leave=False):
+    for lam in lambda_grid:
         avg_mae.append(evaluate_lambda(lam))
     avg_mae = np.array(avg_mae)
 
@@ -180,7 +180,6 @@ def run_iteration_tts_subspace(iter_idx, X_new, Y, varnames_full,
     best_subspace_res = find_best_subspace_and_lambda(
         X_train=x_train, 
         y_train=y_train, 
-        #lambda_grid=lambda_grid, 
         varnames_full=varnames_full, 
         predictor_subset=predictor_subset,
         n_subspaces=n_subspaces,
@@ -221,60 +220,36 @@ def run_iteration_tts_subspace(iter_idx, X_new, Y, varnames_full,
 
 
 # =====================================================
-# --- Updated Parallel Execution (Sequential wrapper) ---
+# --- Parallel Execution (Sequential wrapper) ---
 # =====================================================
 def run_parallel_subspace(iters, X_new, Y, varnames_full,  
                           test_ratio, n_folds_cv, predictor_subset, n_subspaces):
-    
-    # n_jobs=-1 automatically detects all your CPU cores (e.g., 8, 12, or 16)
-    # backend="loky" is the most robust for Windows
-    results = Parallel(n_jobs=-1, backend="loky")(
-        delayed(run_iteration_tts_subspace)(
-            i, X_new, Y, varnames_full,  
-            test_ratio, n_folds_cv, predictor_subset, n_subspaces
-        ) for i in tqdm(range(iters), desc="Parallel Execution")
-    )
-    
-    # Filter out any None results if an entire iteration failed
-    return [r for r in results if r is not None]
 
-# =============
-# --- MAIN ---
-# =============
-if __name__ == '__main__':
-    x = pd.read_csv("use_glio_data_filter1000.csv")
-    y = pd.read_csv("use_glio_dataY_filter1000.csv")
-    X_new = x.values
-    Y = y.values.squeeze()
-    varnames_full = x.columns.tolist()
-
-    # Configuration
-    iters = 200
-    test_ratio = 0.20
-    n_folds_cv = 4
-    
-    # Subspace Configuration
-    n_cols = X_new.shape[1]
-    predictor_subset = int(round(n_cols * 0.8))
-    n_subspaces = 5
     start = time.time()
-    outputs = run_parallel_subspace(
-        iters, 
-        X_new, 
-        Y, 
-        varnames_full,
-        #lambda_grid, 
-        test_ratio=test_ratio, 
-        n_folds_cv=n_folds_cv,
-        predictor_subset=predictor_subset, 
-        n_subspaces=n_subspaces          
-    )
+    with parallel_backend("loky"):
+        with tqdm_joblib(
+            tqdm(total=iters, desc="Subsampling iterations", ncols=80)
+        ):
+            results = Parallel(n_jobs=-1)(
+                delayed(run_iteration_tts_subspace)(
+                    i,
+                    X_new,
+                    Y,
+                    varnames_full,
+                    test_ratio,
+                    n_folds_cv,
+                    predictor_subset,
+                    n_subspaces
+                )
+                for i in range(iters)
+            )
+
+    outputs = [r for r in results if r is not None]
 
     final_df = pd.concat(outputs, ignore_index=True)
     out_prefix="CVlam_Glio_Subspace" 
-    date_str = datetime.now().strftime("%Y%m%d")
-    rand_num = random.randint(1000, 9999)
-    filename = f"{out_prefix}_{date_str}_{rand_num}.csv"
+    date_str = datetime.now().strftime("%m%d%H%M")
+    filename = f"{out_prefix}_{date_str}.csv"
     final_df.to_csv(filename, index=False)
 
     print(f"total time: {round(time.time() - start, 2)} sec")
