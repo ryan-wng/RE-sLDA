@@ -1,4 +1,6 @@
 import time
+from datetime import datetime
+import os
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold, train_test_split
@@ -7,7 +9,6 @@ from joblib import Parallel, delayed, parallel_backend
 from ordinal.ordinalFunctions import ordASDA
 from tqdm import tqdm
 from tqdm_joblib import tqdm_joblib
-from datetime import datetime
 from funs import predict_asda_ordinal
 
 # =====================================================
@@ -208,11 +209,8 @@ def run_iteration_tts_subspace(iter_idx, X_new, Y, varnames_full,
 
     # --- 4. Return Results ---
     df_iter = pd.DataFrame({
-        'iteration': iter_idx + 1,
         'Selected_Variables': [results_vars_str],
         'optimal_lambda': [optimal_lambda],
-        'Subspace_Size': [len(subspace_indices)],
-        'Subspaces_Searched': [n_subspaces],
         'MAE': [mae],
         'Accuracy': [accuracy]
     })
@@ -223,7 +221,8 @@ def run_iteration_tts_subspace(iter_idx, X_new, Y, varnames_full,
 # --- Parallel Execution (Sequential wrapper) ---
 # =====================================================
 def run_parallel_subspace(iters, X_new, Y, varnames_full,  
-                          test_ratio, n_folds_cv, predictor_subset, n_subspaces):
+                          test_ratio, n_folds_cv, predictor_subset, 
+                          n_subspaces, out_prefix):
 
     start = time.time()
     with parallel_backend("loky"):
@@ -247,9 +246,9 @@ def run_parallel_subspace(iters, X_new, Y, varnames_full,
     outputs = [r for r in results if r is not None]
 
     final_df = pd.concat(outputs, ignore_index=True)
-    out_prefix="CVlam_Glio_Subspace" 
     date_str = datetime.now().strftime("%m%d%H%M")
-    filename = f"{out_prefix}_{date_str}.csv"
-    final_df.to_csv(filename, index=False)
+    filename = f"{out_prefix}_subsampling_{date_str}.csv"
+    out_path = os.path.join("output", filename)
+    final_df.to_csv(out_path, index=False)
 
     print(f"total time: {round(time.time() - start, 2)} sec")

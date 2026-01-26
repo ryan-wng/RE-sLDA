@@ -1,15 +1,16 @@
 import numpy as np
 import pandas as pd
+import os
+import time
+from datetime import datetime
 from ordinal.ordinalFunctions import ordASDA
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import GroupKFold
 from joblib import Parallel, delayed, parallel_backend
 from tqdm import tqdm
 from tqdm_joblib import tqdm_joblib
-import time
-from datetime import datetime
 from funs import predict_asda_ordinal
-from sklearn.model_selection import GroupKFold
 
 # -----------------------------
 # Lambda CV with Grouping
@@ -162,7 +163,8 @@ def run_bootstrap(i, X, Y, varnames_full,
     }
 
 def run_parallel_bootstraps(iters, X_new, Y, varnames_full, boot_scale, 
-                            predictor_subset, subspace_size, cv_folds, base_seed=42):
+                            predictor_subset, subspace_size, cv_folds, 
+                            out_prefix, base_seed=42):
     """
     Parallel driver over bootstraps with tqdm_joblib progress bar.
     Returns the list of per-bootstrap result dicts.
@@ -188,45 +190,31 @@ def run_parallel_bootstraps(iters, X_new, Y, varnames_full, boot_scale,
             )
             
     print("total time:", round(time.time() - start, 2), "sec")
-    best_result = max(results, key=lambda r: r["accuracy"])
-    print("Best model accuracy:", round(best_result["accuracy"], 4))
 
-    save_bootstrap_outputs(results)
+    save_bootstrap_outputs(results, out_prefix)
 
-def save_bootstrap_outputs(results, out_prefix="BS_Glios_group", vip_prefix="BS_Glios_gr_VIP"):
+def save_bootstrap_outputs(results, out_prefix):
     """
     Saves:
       1) per-bootstrap summary CSV
       2) VIP frequency CSV
     Returns (results_filename, vip_filename).
     """
-    models_beta = [r["beta"] for r in results]
     models_vars = [r["varNames"] for r in results]
     accuracies = [r["accuracy"] for r in results]
     maes = [r["mae"] for r in results]
     lambdas = [r["optimal_lambda"] for r in results]
 
     df = pd.DataFrame({
-        "Beta": models_beta,
-        "Variables": models_vars,
+        "Selected_Variables": models_vars,
         "optimal_lambda": lambdas,
+        "MAE": maes,
         "Accuracy": accuracies,
-        "MAE": maes
     })
 
-    # VIP frequency
-    all_selected = sum(models_vars, [])
-    freq = pd.Series(all_selected).value_counts().sort_values(ascending=False)
-    freq_df = freq.reset_index()
-    freq_df.columns = ["Variable", "Frequency"]
-
     date_str = datetime.now().strftime("%m%d%H%M%S")
-
-    results_filename = f"{out_prefix}_{date_str}.csv"
-    vip_filename = f"{vip_prefix}_{date_str}.csv"
-
-    df.to_csv(results_filename, index=False)
-    freq_df.to_csv(vip_filename, index=False)
+    filename = f"{out_prefix}_bootstrapping_{date_str}.csv"
+    out_path = os.path.join("output", filename)
+    df.to_csv(out_path, index=False)
     
-    print("Saved model results to:", results_filename)
-    print("Saved variable frequency to:", vip_filename)
+    print("Saved model results to:", filename)

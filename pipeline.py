@@ -24,10 +24,12 @@ def main():
     args = parse_args()
 
     # ------------------
-    # Load data
+    # Load datasets
     # ------------------
-    x = pd.read_csv("use_glio_data_filter1000.csv")
-    y = pd.read_csv("use_glio_dataY_filter1000.csv")
+    x_filename = "use_glio_data_filter1000.csv"
+    y_filename = "use_glio_dataY_filter1000.csv"
+    x = pd.read_csv(f"datasets/{x_filename}")
+    y = pd.read_csv(f"datasets/{y_filename}", header=None)
 
     X_new = x.values
     Y = y.values.squeeze()
@@ -37,11 +39,13 @@ def main():
     # ------------------
     # Subsampling config
     # ------------------
-    iters = 200
+    subsampling_iters = 200
     test_ratio = 0.20
     n_folds_cv = 4
     predictor_subset = int(round(n_cols * 0.8))
     n_subspaces = 5
+    
+    subsampling_output_prefix = "CVlam_Glio_Subspace"
 
     # ------------------
     # Bootstrapping config
@@ -50,9 +54,11 @@ def main():
     target_unique_prob = 0.8
     boot_scale = -math.log(1 - target_unique_prob)
 
-    n_bootstraps = 200
+    bootstrap_iters = 200
     cv_folds = 4
     base_seed = 42
+    
+    bootstrapping_output_prefix = "BS_Glios_group"
 
     # Reproducibility
     random.seed(base_seed)
@@ -64,20 +70,21 @@ def main():
     if args.mode in ("subsampling"):
         print("\n=== Running subsampling ===")
         subsampling(
-            iters,
-            X_new,
-            Y,
-            varnames_full,
+            iters=subsampling_iters,
+            X_new=X_new,
+            Y=Y,
+            varnames_full=varnames_full,
             test_ratio=test_ratio,
             n_folds_cv=n_folds_cv,
             predictor_subset=predictor_subset,
             n_subspaces=n_subspaces,
+            out_prefix=subsampling_output_prefix,
         )
 
     if args.mode in ("bootstrapping"):
         print("\n=== Running bootstrapping ===")
         bootstrapping(
-            n_bootstraps=n_bootstraps,
+            iters=bootstrap_iters,
             X_new=X_new,
             Y=Y,
             varnames_full=varnames_full,
@@ -85,6 +92,7 @@ def main():
             predictor_subset=predictor_subset,
             subspace_size=subspace_size,
             cv_folds=cv_folds,
+            out_prefix=bootstrapping_output_prefix,
             base_seed=base_seed,
         )
 
