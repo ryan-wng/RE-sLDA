@@ -17,7 +17,7 @@ Clone the repository to your local machine, then install the required Python pac
 ```bash
 pip install -r requirements.txt
 ```
-> Note: A virtual environment is recommended to avoid dependency conflicts.
+**Note:** A virtual environment is recommended to avoid dependency conflicts.
 
 ---
 
@@ -102,9 +102,9 @@ BS_Glios_group_bootstrapping_01251445.csv
 
 ### Notes on Interpretation
 
-> **Note:** The `Selected_Variables` column reflects the final set of features chosen for that run and may vary across executions due to resampling and randomness.
+**Note:** The `Selected_Variables` column reflects the final set of features chosen for that run and may vary across executions due to resampling and randomness.
 
-> **Important:** Performance metrics are computed on held-out data and may vary depending on the random seed and parameter configuration.
+**Important:** Performance metrics are computed on held-out data and may vary depending on the random seed and parameter configuration.
 
 ---
 
